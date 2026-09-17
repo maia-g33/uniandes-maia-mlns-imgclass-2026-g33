@@ -1,5 +1,8 @@
 #  We ensure proper path handling in Python
 import Definitions
+import os.path as osp
+
+import altair as alt
 import streamlit as st
 
 from src.ModelController import ModelController
@@ -7,6 +10,10 @@ from src.ModelController import ModelController
 ### Setup and configuration
 
 st.set_page_config(page_title="Clasificador de textos ODS", page_icon="🌍", layout="centered")
+
+RUTA_IMAGENES = osp.join(Definitions.ROOT_DIR, "resources", "images")
+LOGO_UNIANDES = osp.join(RUTA_IMAGENES, "logo_uniandes.png")
+RUEDA_ODS = osp.join(RUTA_IMAGENES, "ods_rueda.png")
 
 EJEMPLOS = {
     "— Escribe tu propio texto —": "",
@@ -50,7 +57,18 @@ dp = ctrl.d_processing
 
 ### My UI starting here
 
-st.title("🌍 Clasificador de textos según los ODS")
+col_rueda, col_titulo = st.columns([1, 5], vertical_alignment="center")
+col_rueda.image(RUEDA_ODS, width=110)
+col_titulo.title("Clasificador de textos según los ODS")
+
+# Franja con los 17 colores oficiales de los ODS.
+st.markdown(
+    '<div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin:4px 0 18px">'
+    + "".join(f'<div style="flex:1;background:{c}"></div>' for c in dp.COLORES_ODS.values())
+    + "</div>",
+    unsafe_allow_html=True,
+)
+
 st.write(
     "Esta aplicación identifica con cuál de los Objetivos de Desarrollo Sostenible "
     "de la Agenda 2030 se relaciona un texto. Usa el mismo pipeline construido en el "
@@ -59,6 +77,7 @@ st.write(
 )
 
 with st.sidebar:
+    st.image(LOGO_UNIANDES, width=85)
     st.header("Sobre el modelo")
     st.markdown(
         """
@@ -102,10 +121,15 @@ if st.button("Clasificar texto", type="primary"):
 
         ods, ranking = ctrl.predict(texto.strip())
 
+        # Letra oscura sobre los colores claros (p. ej. el amarillo del ODS 7) para que se lea.
+        color = dp.get_color(ods)
+        r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
+        color_letra = "#1F2A37" if 0.299 * r + 0.587 * g + 0.114 * b > 160 else "white"
+
         st.markdown(
             f"""
-            <div style="background-color:{dp.get_color(ods)};padding:22px;border-radius:10px;
-                        color:white;text-align:center;margin-top:10px">
+            <div style="background-color:{color};padding:22px;border-radius:10px;
+                        color:{color_letra};text-align:center;margin-top:10px">
                 <div style="font-size:19px;opacity:0.9">ODS {ods}</div>
                 <div style="font-size:30px;font-weight:700">{dp.get_cat_name(ods)}</div>
                 <div style="font-size:15px;opacity:0.9;margin-top:6px">
@@ -119,7 +143,14 @@ if st.button("Clasificar texto", type="primary"):
         st.subheader("Los 5 objetivos más probables")
         top5 = ranking.head(5).copy()
         top5["Etiqueta"] = [f"ODS {o} - {n}" for o, n in zip(top5["ODS"], top5["Objetivo"])]
-        st.bar_chart(top5.set_index("Etiqueta")["Confianza"], horizontal=True, height=260)
+        top5["Color"] = [dp.get_color(o) for o in top5["ODS"]]
+        grafico = alt.Chart(top5).mark_bar(cornerRadiusEnd=4).encode(
+            x=alt.X("Confianza:Q", title="Confianza relativa (%)"),
+            y=alt.Y("Etiqueta:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
+            color=alt.Color("Color:N", scale=None),
+            tooltip=["Etiqueta", alt.Tooltip("Confianza:Q", format=".1f")],
+        ).properties(height=260)
+        st.altair_chart(grafico, use_container_width=True)
 
         st.dataframe(
             top5[["ODS", "Objetivo", "Puntaje", "Confianza"]].style.format(
@@ -134,3 +165,13 @@ if st.button("Clasificar texto", type="primary"):
                 "palabras vacías y con cada palabra reducida a su raíz."
             )
             st.code(dp.transform(texto), wrap_lines=True)
+
+### Pie de pagina
+
+st.divider()
+st.markdown(
+    '<div style="text-align:center;font-size:0.85rem;opacity:0.75">'
+    "Machine Learning no Supervisado · 2026<br>Universidad de los Andes"
+    "</div>",
+    unsafe_allow_html=True,
+)
