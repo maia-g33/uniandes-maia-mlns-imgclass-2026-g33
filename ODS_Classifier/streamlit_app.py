@@ -75,6 +75,14 @@ with st.sidebar:
         modelo solo puede predecir los objetivos del 1 al 16.
         """
     )
+    st.divider()
+    st.markdown(
+        """
+        **Diseñadores:**
+        - Giovanny Andres Jurado Torres
+        - Nelson Fabian Ibanez Piedrahita
+        """
+    )
 
 ejemplo = st.selectbox("Puedes partir de un ejemplo o escribir tu propio texto:", list(EJEMPLOS))
 texto = st.text_area(
