@@ -99,7 +99,7 @@ with st.sidebar:
         """
         **Diseñadores:**
         - Giovanny Andres Jurado Torres
-        - Nelson Fabian Ibanez Piedrahita
+        - Nelson Fabian Ibañez Piedrahita
         """
     )
 
@@ -120,6 +120,9 @@ if st.button("Clasificar texto", type="primary"):
             st.info(mensaje)
 
         ods, ranking = ctrl.predict(texto.strip())
+        # Diferencia de puntaje con el segundo objetivo: es lo que de verdad indica
+        # si el modelo tiene un ganador claro o si el texto quedo entre varios ODS.
+        ventaja = ranking.loc[0, "Puntaje"] - ranking.loc[1, "Puntaje"]
 
         # Letra oscura sobre los colores claros (p. ej. el amarillo del ODS 7) para que se lea.
         color = dp.get_color(ods)
@@ -133,31 +136,71 @@ if st.button("Clasificar texto", type="primary"):
                 <div style="font-size:19px;opacity:0.9">ODS {ods}</div>
                 <div style="font-size:30px;font-weight:700">{dp.get_cat_name(ods)}</div>
                 <div style="font-size:15px;opacity:0.9;margin-top:6px">
-                    Confianza relativa: {ranking.loc[0, 'Confianza']:.1f}%
+                    Afinidad relativa: {ranking.loc[0, 'Afinidad']:.1f}%
+                    &nbsp;·&nbsp; ventaja de {ventaja:.2f} sobre el ODS {ranking.loc[1, 'ODS']}
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        st.subheader("Los 5 objetivos más probables")
+        # Umbral medido sobre los 1.932 textos de prueba: con una ventaja menor a 0,5
+        # el modelo acierta el 59% de las veces, frente al 96% cuando es mayor.
+        if ventaja < 0.5:
+            st.info(
+                f"La ventaja sobre el ODS {ranking.loc[1, 'ODS']} es de solo {ventaja:.2f}, "
+                "así que el texto quedó cerca de la frontera entre varios objetivos. "
+                "En estos casos el modelo acierta cerca del 59% de las veces, frente al 96% "
+                "cuando la ventaja es amplia: conviene revisar los primeros de la lista y no "
+                "quedarse solo con el primero."
+            )
+
+        st.subheader("Los 5 objetivos con mayor afinidad")
         top5 = ranking.head(5).copy()
         top5["Etiqueta"] = [f"ODS {o} - {n}" for o, n in zip(top5["ODS"], top5["Objetivo"])]
         top5["Color"] = [dp.get_color(o) for o in top5["ODS"]]
         grafico = alt.Chart(top5).mark_bar(cornerRadiusEnd=4).encode(
-            x=alt.X("Confianza:Q", title="Confianza relativa (%)"),
+            x=alt.X("Afinidad:Q", title="Afinidad relativa (%)"),
             y=alt.Y("Etiqueta:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
             color=alt.Color("Color:N", scale=None),
-            tooltip=["Etiqueta", alt.Tooltip("Confianza:Q", format=".1f")],
+            tooltip=["Etiqueta", alt.Tooltip("Afinidad:Q", format=".1f")],
         ).properties(height=260)
         st.altair_chart(grafico, use_container_width=True)
 
         st.dataframe(
-            top5[["ODS", "Objetivo", "Puntaje", "Confianza"]].style.format(
-                {"Puntaje": "{:+.3f}", "Confianza": "{:.1f}%"}
+            top5[["ODS", "Objetivo", "Puntaje", "Afinidad"]].style.format(
+                {"Puntaje": "{:+.3f}", "Afinidad": "{:.1f}%"}
             ),
             hide_index=True,
         )
+
+        with st.expander("¿Cómo se leen el puntaje y la afinidad?"):
+            st.markdown(
+                """
+                El modelo entrena **una frontera por cada ODS**, y para un texto nuevo
+                calcula un **puntaje** por objetivo, proporcional a la distancia del
+                texto a esa frontera. Un puntaje positivo significa que el texto cae
+                del lado del objetivo; uno negativo, que no. Si los 16 puntajes salen
+                negativos, ninguna frontera reclama el texto y el modelo entrega el
+                objetivo *menos descartado*.
+
+                La **afinidad** reparte esos puntajes en porcentajes que suman 100,
+                solo para poderlos comparar de un vistazo. **No es una probabilidad
+                de acierto:** el modelo acierta el 88,2% de las veces, pero incluso en
+                un texto muy claro la afinidad del ganador rara vez pasa del 50%,
+                porque el porcentaje se reparte entre 16 objetivos. En el otro extremo,
+                un valor cercano al 6,25% (1 entre 16) equivale a "sin información".
+
+                Lo que de verdad indica seguridad es la **ventaja**: la diferencia de
+                puntaje entre el primer objetivo y el segundo. En los textos de prueba
+                la ventaja mediana es de 1,23; cuando supera 0,5 el modelo acierta el
+                96% de las veces, y cuando no la alcanza el acierto cae al 59%. Una
+                ventaja pequeña
+                significa que el texto está entre dos o más objetivos, algo normal
+                cuando comparten vocabulario, como los ODS 1, 8, 9 y 10, que hablan
+                todos de ingresos, empleo y crecimiento.
+                """
+            )
 
         with st.expander("Ver el texto después del preprocesamiento"):
             st.caption(
