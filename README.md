@@ -6,6 +6,11 @@ Aplicación de Streamlit que recibe un texto libre en español y predice con cu�
 
 **Aplicación desplegada:** https://uniandes-maia-mlns-imgclass-2026-g33.streamlit.app
 
+## Desarrolladores
+
+- Giovanny Andres Jurado Torres
+- Nelson Fabian Ibañez Piedrahita
+
 ## Modelo
 
 El pipeline se construyó en [notebook/Microproyecto2_ODS.ipynb](notebook/Microproyecto2_ODS.ipynb):

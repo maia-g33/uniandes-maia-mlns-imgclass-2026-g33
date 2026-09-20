@@ -97,7 +97,7 @@ with st.sidebar:
     st.divider()
     st.markdown(
         """
-        **Diseñadores:**
+        **Desarrolladores:**
         - Giovanny Andres Jurado Torres
         - Nelson Fabian Ibañez Piedrahita
         """
