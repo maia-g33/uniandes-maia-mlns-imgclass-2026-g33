@@ -43,7 +43,7 @@ notebook/
 
 ## Diferencias con la plantilla del curso
 
-- **Un solo archivo de modelo.** La plantilla guarda `scaler`, `pca` y `model` por separado. Aquí el `Pipeline` de scikit-learn ya encapsula la vectorización, la reducción de dimensionalidad y el clasificador, así que basta con `model.joblib`.
+- **Un solo archivo de modelo.** Aquí el `Pipeline` de scikit-learn ya encapsula la vectorización, la reducción de dimensionalidad y el clasificador, así que basta con `model.joblib`.
 - **`preprocesamiento.py` junto a `streamlit_app.py`.** El pipeline guardado referencia la función `preprocesamiento.limpiar_texto`. Si el archivo se mueve a `src/`, joblib no puede cargar el modelo.
 - **Python 3.11.** El modelo se entrenó con scikit-learn 1.9.0, que requiere Python 3.11 o superior. Las versiones de `requirements.txt` están fijadas para que coincidan con las del entrenamiento.
 
